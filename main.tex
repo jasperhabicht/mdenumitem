@@ -1,0 +1,92 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\ExplSyntaxOn
+\str_new:N \l_mdenumitem_itemmark_str
+\str_set:Nn \l_mdenumitem_itemmark_str { - }
+
+\NewDocumentCommand{\setmdenumerateitemmark} { m } {
+    \str_set:Nn \l_mdenumitem_itemmark_str { #1 }
+}
+
+\seq_new:N \l__mdenumitem_enumbody_seq
+\int_new:N \g__mdenumitem_currentlevel_int
+\int_new:N \l__mdenumitem_itemlevel_int
+\int_new:N \g__mdenumitem_itemlevel_int
+\tl_new:N \l__mdenumitem_curremtitem_tl
+\seq_new:N \l__mdenumitem_countlevel_seq
+
+\cs_generate_variant:Nn \regex_count:nnN { nx }
+\cs_new_protected:Nn \mdenumitem_count_item_level:nN {
+    \seq_clear:N \l__mdenumitem_countlevel_seq
+    \regex_extract_once:nnN 
+        { \A(\u{l_mdenumitem_itemmark_str}+)\s } { #1 } \l__mdenumitem_countlevel_seq
+    \regex_count:nxN 
+        { \u{l_mdenumitem_itemmark_str} } { \seq_item:Nn \l__mdenumitem_countlevel_seq { 2 } } #2
+}
+\cs_generate_variant:Nn \mdenumitem_count_item_level:nN { V }
+
+\NewDocumentEnvironment{mdenumerate} { O{} +b } {
+    \seq_clear:N \l__mdenumitem_enumbody_seq
+    \int_gset:Nn \g__mdenumitem_currentlevel_int { 1 }
+    \regex_split:nnN 
+        { \A\u{l_mdenumitem_itemmark_str}|\s\u{l_mdenumitem_itemmark_str} } { #2 } \l__mdenumitem_enumbody_seq
+        
+    \begin{enumerate}[#1]
+    \seq_map_inline:Nn \l__mdenumitem_enumbody_seq {
+        \tl_if_blank:nF { ##1 } {
+            \tl_gset:Nn \l__mdenumitem_curremtitem_tl { ##1 }
+            \tl_gput_left:Nx \l__mdenumitem_curremtitem_tl \l_mdenumitem_itemmark_str 
+
+            \mdenumitem_count_item_level:VN \l__mdenumitem_curremtitem_tl \l__mdenumitem_itemlevel_int
+            \int_gset_eq:NN \g__mdenumitem_itemlevel_int \l__mdenumitem_itemlevel_int
+
+            \int_compare:nNnTF { \g__mdenumitem_currentlevel_int } > { \g__mdenumitem_itemlevel_int } {
+                \int_while_do:nn { \g__mdenumitem_currentlevel_int > \g__mdenumitem_itemlevel_int } {
+                    \int_gdecr:N \g__mdenumitem_currentlevel_int
+                    \end{enumerate}
+                }
+            } {
+                \int_while_do:nn { \g__mdenumitem_currentlevel_int < \g__mdenumitem_itemlevel_int } {
+                    \int_gincr:N \g__mdenumitem_currentlevel_int
+                    \begin{enumerate}
+                }
+            }
+            
+            \regex_replace_once:nnN 
+                { \A\u{l_mdenumitem_itemmark_str}+ } { } \l__mdenumitem_curremtitem_tl
+            \item \l__mdenumitem_curremtitem_tl
+        }
+    }
+    \int_while_do:nn { \g__mdenumitem_currentlevel_int > 0 } {
+        \int_gdecr:N \g__mdenumitem_currentlevel_int
+        \end{enumerate}
+    }
+} { }
+\ExplSyntaxOff
+
+
+\begin{document}
+
+\begin{mdenumerate}
+- One
+-- Two
+-- Three
+--- Four
+- Five
+- Six
+\end{mdenumerate}
+
+\bigskip
+
+\setmdenumerateitemmark{§}
+
+\begin{mdenumerate}
+§ One
+§§ Two
+§§§ Three
+§§§§ Four
+§ Five
+\end{mdenumerate}
+
+\end{document}
